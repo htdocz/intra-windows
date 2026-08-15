@@ -336,8 +336,9 @@ class GoodbyeDpiGUI:
         self.lang_dict = LOCALIZATION.get(self.lang, LOCALIZATION["TR"])
         
         self.root.title(self.lang_dict["window_title"])
-        self.root.geometry("540x760")
-        self.root.resizable(False, False)
+        self.root.geometry("540x700")
+        self.root.resizable(True, True)
+        self.root.minsize(540, 600)
         
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -510,13 +511,17 @@ class GoodbyeDpiGUI:
 
     def setup_settings_tab(self):
         self.tab_settings.grid_columnconfigure(0, weight=1)
+        self.tab_settings.grid_rowconfigure(0, weight=1)
+        
+        self.settings_scroll = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
+        self.settings_scroll.pack(fill="both", expand=True, padx=5, pady=5)
         
         self.dns_provider_lbl = ctk.CTkLabel(
-            self.tab_settings, 
+            self.settings_scroll, 
             text=self.lang_dict["lbl_doh"], 
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold")
         )
-        self.dns_provider_lbl.pack(anchor="w", padx=20, pady=(15, 5))
+        self.dns_provider_lbl.pack(anchor="w", padx=10, pady=(15, 5))
         
         self.dns_doh_providers = {
             "Cloudflare DNS (1.1.1.1)": {
@@ -538,7 +543,7 @@ class GoodbyeDpiGUI:
         }
         
         self.doh_dropdown = ctk.CTkOptionMenu(
-            self.tab_settings,
+            self.settings_scroll,
             values=list(self.dns_doh_providers.keys()),
             command=self.on_doh_change,
             width=400,
@@ -546,70 +551,70 @@ class GoodbyeDpiGUI:
             button_color="#475569",
             button_hover_color="#64748B"
         )
-        self.doh_dropdown.pack(anchor="w", padx=20, pady=(0, 15))
+        self.doh_dropdown.pack(anchor="w", padx=10, pady=(0, 15))
         
         self.port_lbl = ctk.CTkLabel(
-            self.tab_settings, 
+            self.settings_scroll, 
             text=self.lang_dict["lbl_port"], 
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold")
         )
-        self.port_lbl.pack(anchor="w", padx=20, pady=(0, 2))
+        self.port_lbl.pack(anchor="w", padx=10, pady=(0, 2))
         
         self.port_entry = ctk.CTkEntry(
-            self.tab_settings,
+            self.settings_scroll,
             placeholder_text="10808",
             width=150,
             fg_color="#0F172A",
             border_color="#475569"
         )
-        self.port_entry.pack(anchor="w", padx=20, pady=(0, 10))
+        self.port_entry.pack(anchor="w", padx=10, pady=(0, 10))
         
-        self.sep = ctk.CTkFrame(self.tab_settings, height=2, fg_color="#334155")
-        self.sep.pack(fill="x", padx=20, pady=12)
+        self.sep = ctk.CTkFrame(self.settings_scroll, height=2, fg_color="#334155")
+        self.sep.pack(fill="x", padx=10, pady=12)
         
         self.startup_var = ctk.BooleanVar()
         self.startup_cb = ctk.CTkCheckBox(
-            self.tab_settings,
+            self.settings_scroll,
             text=self.lang_dict["cb_startup"],
             variable=self.startup_var,
             command=self.toggle_startup,
             fg_color="#6366F1"
         )
-        self.startup_cb.pack(anchor="w", padx=20, pady=6)
+        self.startup_cb.pack(anchor="w", padx=10, pady=6)
         
         self.tray_close_var = ctk.BooleanVar()
         self.tray_close_cb = ctk.CTkCheckBox(
-            self.tab_settings,
+            self.settings_scroll,
             text=self.lang_dict["cb_tray_close"],
             variable=self.tray_close_var,
             command=self.update_config_vars,
             fg_color="#6366F1"
         )
-        self.tray_close_cb.pack(anchor="w", padx=20, pady=6)
+        self.tray_close_cb.pack(anchor="w", padx=10, pady=6)
         
         self.tray_start_var = ctk.BooleanVar()
         self.tray_start_cb = ctk.CTkCheckBox(
-            self.tab_settings,
+            self.settings_scroll,
             text=self.lang_dict["cb_tray_start"],
             variable=self.tray_start_var,
             command=self.update_config_vars,
             fg_color="#6366F1"
         )
-        self.tray_start_cb.pack(anchor="w", padx=20, pady=6)
-
+        self.tray_start_cb.pack(anchor="w", padx=10, pady=6)
+ 
         # Language selection
-        self.lang_sep = ctk.CTkFrame(self.tab_settings, height=2, fg_color="#334155")
-        self.lang_sep.pack(fill="x", padx=20, pady=12)
-
+        self.lang_sep = ctk.CTkFrame(self.settings_scroll, height=2, fg_color="#334155")
+        self.lang_sep.pack(fill="x", padx=10, pady=12)
+ 
         self.lang_lbl = ctk.CTkLabel(
-            self.tab_settings, 
+            self.settings_scroll, 
             text=self.lang_dict["lbl_lang"], 
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold")
         )
-        self.lang_lbl.pack(anchor="w", padx=20, pady=(0, 2))
+        self.lang_lbl.pack(anchor="w", padx=10, pady=(0, 2))
         
         self.lang_dropdown = ctk.CTkOptionMenu(
-            self.tab_settings,
+            self.settings_scroll,
             values=["Türkçe (TR)", "English (EN)", "Русский (RU)", "Deutsch (DE)", "Azərbaycan (AZ)"],
             command=self.on_language_change,
             width=200,
@@ -617,7 +622,7 @@ class GoodbyeDpiGUI:
             button_color="#475569",
             button_hover_color="#64748B"
         )
-        self.lang_dropdown.pack(anchor="w", padx=20, pady=(0, 10))
+        self.lang_dropdown.pack(anchor="w", padx=10, pady=(0, 10))
         lang_map = {"TR": "Türkçe (TR)", "EN": "English (EN)", "RU": "Русский (RU)", "DE": "Deutsch (DE)", "AZ": "Azərbaycan (AZ)"}
         self.lang_dropdown.set(lang_map.get(self.lang, "Türkçe (TR)"))
 
