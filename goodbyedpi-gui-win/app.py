@@ -336,7 +336,7 @@ class GoodbyeDpiGUI:
         self.lang_dict = LOCALIZATION.get(self.lang, LOCALIZATION["TR"])
         
         self.root.title(self.lang_dict["window_title"])
-        self.root.geometry("540x700")
+        self.root.geometry("540x760")
         self.root.resizable(False, False)
         
         ctk.set_appearance_mode("dark")
