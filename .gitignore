@@ -1,0 +1,36 @@
+# Android Build Files
+*.iml
+*.p12
+.gradle
+.vscode/
+/Android/local.properties
+/Android/keystore.properties
+/Android/app/build/
+/Android/app/obj/
+/Android/app/release/
+/Android/tun2socks/build/
+/captures
+
+# Python Build and Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+goodbyedpi-gui-win/build/
+goodbyedpi-gui-win/dist/
+goodbyedpi-gui-win/*.spec
+
+# Go Build Artifacts
+/goodbyedpi-gui-win/bin/intra-windpi.exe
+
+# Executables and Local User Data
+*.exe
+config.json
+goodbyedpi-gui-win/config.json
+crash_log.txt
+goodbyedpi-gui-win/crash_log.txt
+
+# System Files
+.DS_Store
+Thumbs.db
