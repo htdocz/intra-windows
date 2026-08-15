@@ -40,7 +40,7 @@ echo.
 :: 3. Derleme Islemi
 echo [3/5] PyInstaller ile Tek Dosya (EXE) derleniyor...
 echo Bu islem 30 saniye kadar surebilir, lutfen bekleyin...
-pyinstaller --noconfirm --onefile --windowed --icon="icon.ico" --add-data "bin/intra-windpi.exe;bin" --add-data "icon.png;." --add-data "icon.ico;." --name="IntraTurkey" app.py
+pyinstaller --noconfirm --onefile --windowed --icon="icon.ico" --add-data "bin/intra-windpi.exe;bin" --add-data "icon.png;." --add-data "icon.ico;." --name="IntraWindows" app.py
 
 if %errorLevel% neq 0 (
     echo.
@@ -53,8 +53,8 @@ echo.
 :: 4. Dosyayi Ana Dizine Tasima
 echo [4/5] Derlenen dosya ana dizine tasiniyor...
 cd ..
-if exist "IntraTurkey.exe" del /f "IntraTurkey.exe"
-move "goodbyedpi-gui-win\dist\IntraTurkey.exe" ".\IntraTurkey.exe" >nul 2>&1
+if exist "IntraWindows.exe" del /f "IntraWindows.exe"
+move "goodbyedpi-gui-win\dist\IntraWindows.exe" ".\IntraWindows.exe" >nul 2>&1
 echo.
 
 :: 5. Temizlik
@@ -62,13 +62,13 @@ echo [5/5] Gecici derleme dosyalari temizleniyor...
 cd goodbyedpi-gui-win
 rmdir /s /q build >nul 2>&1
 rmdir /s /q dist >nul 2>&1
-del /f /q IntraTurkey.spec >nul 2>&1
+del /f /q IntraWindows.spec >nul 2>&1
 cd ..
 
 echo.
 echo ========================================================
 echo TEBRIKLER! Tek parca EXE basariyla olusturuldu.
-echo Klasorde 'IntraTurkey.exe' adinda bulabilirsiniz.
+echo Klasorde 'IntraWindows.exe' adinda bulabilirsiniz.
 echo ========================================================
 echo.
 pause

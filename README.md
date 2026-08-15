@@ -1,4 +1,4 @@
-# 🛡️ Intra Turkey Windows Secure Shield
+# 🛡️ Intra Windows Windows Secure Shield
 
 Select Language:
 * [Türkçe Kılavuz (TR)](#-intra-turkey-windows-secure-shield-tr)
@@ -6,9 +6,9 @@ Select Language:
 
 ---
 
-## 🛡️ Intra Turkey Windows Secure Shield (TR)
+## 🛡️ Intra Windows Windows Secure Shield (TR)
 
-Intra Turkey, Jigsaw's Android Intra kütüphanelerini temel alarak Windows için özel olarak geliştirilmiş **çift protokol tünelleme (SOCKS5 + HTTP Proxy)** ve **paket parçalama (DPI Bypass)** aracıdır. Türkiye'deki İnternet Servis Sağlayıcılarının (Türk Telekom, Superonline vb.) uyguladığı DNS zehirlemelerini ve TLS el sikışması (Client Hello) bazlı sansürleri (Discord, YouTube, sosyal medya engelleri vb.) aşmak için tasarlanmıştır.
+Intra Windows, Jigsaw's Android Intra kütüphanelerini temel alarak Windows için özel olarak geliştirilmiş **çift protokol tünelleme (SOCKS5 + HTTP Proxy)** ve **paket parçalama (DPI Bypass)** aracıdır. Türkiye'deki İnternet Servis Sağlayıcılarının (Türk Telekom, Superonline vb.) uyguladığı DNS zehirlemelerini ve TLS el sikışması (Client Hello) bazlı sansürleri (Discord, YouTube, sosyal medya engelleri vb.) aşmak için tasarlanmıştır.
 
 ### ✨ Öne Çıkan Özellikler
 
@@ -32,7 +32,7 @@ Intra Turkey, Jigsaw's Android Intra kütüphanelerini temel alarak Windows içi
 │   ├── requirements.txt          # Gerekli Python kütüphaneleri
 │   ├── bin/                      # Derlenmiş Go binary dosyasının konumu (intra-windpi.exe)
 │   └── ...
-├── derle.bat                     # Projeyi tek dosya EXE (IntraTurkey.exe) yapan derleme betiği
+├── derle.bat                     # Projeyi tek dosya EXE (IntraWindows.exe) yapan derleme betiği
 ├── ACIL_DURUM_AG_SIFIRLAMA.bat   # Windows ağ ayarlarını sıfırlayan acil durum betiği
 ├── .gitignore                    # Gereksiz/geçici build dosyalarını filtreleyen Git dosyası
 └── README.md                     # Proje tanıtım belgesi (Bu dosya)
@@ -63,13 +63,13 @@ Projeyi bilgisayarında Python veya Go yüklü olmayan herhangi bir Windows kull
 
 1. Ana klasörde bulunan **`derle.bat`** dosyasına çift tıklayın.
 2. Derleyici otomatik olarak `pyinstaller` kütüphanesini kuracak, simgeleri hazırlayacak ve paketleme işlemini yapacaktır.
-3. İşlem tamamlandığında, ana dizinde **`IntraTurkey.exe`** adında tek parçalık bağımsız bir dosya oluşacaktır.
+3. İşlem tamamlandığında, ana dizinde **`IntraWindows.exe`** adında tek parçalık bağımsız bir dosya oluşacaktır.
 
 ---
 
-## 🛡️ Intra Turkey Windows Secure Shield (EN)
+## 🛡️ Intra Windows Windows Secure Shield (EN)
 
-Intra Turkey is a **dual-protocol tunneling (SOCKS5 + HTTP Proxy)** and **packet fragmentation (DPI Bypass)** tool developed specifically for Windows, based on Jigsaw's Android Intra libraries. It is designed to bypass DNS poisoning and TLS handshake (Client Hello) based censorship (such as Discord, YouTube, social media blocks, etc.) implemented by Turkish ISPs (Turk Telekom, Superonline, etc.).
+Intra Windows is a **dual-protocol tunneling (SOCKS5 + HTTP Proxy)** and **packet fragmentation (DPI Bypass)** tool developed specifically for Windows, based on Jigsaw's Android Intra libraries. It is designed to bypass DNS poisoning and TLS handshake (Client Hello) based censorship (such as Discord, YouTube, social media blocks, etc.) implemented by Turkish ISPs (Turk Telekom, Superonline, etc.).
 
 ### ✨ Features
 
@@ -93,7 +93,7 @@ Intra Turkey is a **dual-protocol tunneling (SOCKS5 + HTTP Proxy)** and **packet
 │   ├── requirements.txt          # Python dependencies
 │   ├── bin/                      # Compiled Go binary (intra-windpi.exe)
 │   └── ...
-├── derle.bat                     # Compiler script to build IntraTurkey.exe
+├── derle.bat                     # Compiler script to build IntraWindows.exe
 ├── ACIL_DURUM_AG_SIFIRLAMA.bat   # Emergency network settings restorer
 ├── .gitignore                    # Files excluded from git
 └── README.md                     # Documentation (This file)
@@ -124,4 +124,4 @@ To compile the application into a single executable that can run on any Windows 
 
 1. Double-click the **`derle.bat`** file in the root directory.
 2. The compiler will check dependencies, install PyInstaller, and bundle everything.
-3. Once complete, you will find a standalone **`IntraTurkey.exe`** in the root directory.
+3. Once complete, you will find a standalone **`IntraWindows.exe`** in the root directory.

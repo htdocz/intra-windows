@@ -408,7 +408,7 @@ class GoodbyeDpiGUI:
         
         self.title_label = ctk.CTkLabel(
             self.header_frame, 
-            text="🛡️ INTRA TURKEY SECURE SHIELD", 
+            text="🛡️ INTRA WINDOWS SECURE SHIELD", 
             font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
             text_color="#F8FAFC"
         )
@@ -1165,7 +1165,7 @@ class GoodbyeDpiGUI:
             )
             
             self.tray_icon = pystray.Icon(
-                "Intra-Turkey-Shield", 
+                "Intra-Windows-Shield", 
                 icon_image, 
                 f"{self.lang_dict['window_title']}: {self.lang_dict['status_disabled']}", 
                 menu
