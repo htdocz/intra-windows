@@ -366,8 +366,8 @@ class GoodbyeDpiGUI:
         self.check_binaries()
         
         if "--minimized" in sys.argv or self.config.get("tray_start", False):
-            self.root.withdraw()
             self.setup_tray_icon()
+            self.root.after(100, self.root.withdraw)
         else:
             self.setup_tray_icon()
 
@@ -1123,28 +1123,35 @@ class GoodbyeDpiGUI:
         self.config["startup"] = enable
         self.save_config()
         
+        task_name = "IntraWindows"
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
             if enable:
                 if getattr(sys, 'frozen', False):
-                    run_cmd = f'"{sys.executable}"'
+                    exe_path = sys.executable
                 else:
-                    run_cmd = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+                    exe_path = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
                 
-                if self.config.get("tray_start", False):
-                    run_cmd += " --minimized"
-                    
-                winreg.SetValueEx(key, "Intra-Secure-Shield", 0, winreg.REG_SZ, run_cmd)
-                self.log_message("[SİSTEM] Otomatik başlatma kaydı eklendi.")
+                args = "--minimized" if self.config.get("tray_start", False) else ""
+                tr_cmd = f'"{exe_path}" {args}'.strip() if not getattr(sys, 'frozen', False) else f'"{exe_path}" {args}'.strip()
+                
+                res = subprocess.run(
+                    ['schtasks', '/create', '/f', '/tn', task_name,
+                     '/sc', 'onlogon', '/rl', 'highest', '/tr', tr_cmd],
+                    capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                if res.returncode == 0:
+                    self.log_message("[SİSTEM] Otomatik başlatma görevi eklendi (Görev Zamanlayıcı)." if self.lang == "TR" else "[SYSTEM] Startup task registered (Task Scheduler).")
+                else:
+                    self.log_message(f"[SİSTEM HATA] Görev Zamanlayıcı hatası: {res.stderr.strip()}" if self.lang == "TR" else f"[SYS ERROR] Task Scheduler error: {res.stderr.strip()}")
             else:
-                try:
-                    winreg.DeleteValue(key, "Intra-Secure-Shield")
-                    self.log_message("[SİSTEM] Otomatik başlatma kaydı silindi.")
-                except FileNotFoundError:
-                    pass
-            winreg.CloseKey(key)
+                res = subprocess.run(
+                    ['schtasks', '/delete', '/f', '/tn', task_name],
+                    capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                if res.returncode == 0:
+                    self.log_message("[SİSTEM] Otomatik başlatma görevi silindi." if self.lang == "TR" else "[SYSTEM] Startup task removed.")
         except Exception as e:
-            self.log_message(f"[SİSTEM HATA] Başlangıç ayarı kaydedilemedi: {e}")
+            self.log_message(f"[SİSTEM HATA] Başlangıç ayarı kaydedilemedi: {e}" if self.lang == "TR" else f"[SYS ERROR] Failed to configure startup: {e}")
 
     def setup_tray_icon(self):
         if self.tray_icon:
@@ -1181,17 +1188,28 @@ class GoodbyeDpiGUI:
 
     def on_window_close(self):
         if self.tray_close_var.get():
+            if not self.tray_icon:
+                self.setup_tray_icon()
             self.root.withdraw()
-            self.log_message("[SİSTEM] Arka plana küçültüldü. Sistem tepsisinden yönetebilirsiniz.")
+            self.log_message("[SİSTEM] Arka plana küçültüldü. Sistem tepsisinden yönetebilirsiniz." if self.lang == "TR" else "[SYSTEM] Minimized to system tray.")
         else:
             self.on_closing()
 
     def on_closing(self):
         self.stop_bypass()
         
+        # Always forcefully reset DNS to DHCP on close regardless of user setting
+        try:
+            ps_cmd = 'Get-NetAdapter | Where-Object Status -eq Up | Set-DnsClientServerAddress -ResetServerAddress'
+            subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True, text=True,
+                         creationflags=subprocess.CREATE_NO_WINDOW, timeout=3)
+        except:
+            pass
+        
         # Give OS time to terminate the backend process and release file locks
         time.sleep(0.5)
         
+        # Restore original proxy settings saved at startup
         try:
             key = winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER,
@@ -1202,6 +1220,11 @@ class GoodbyeDpiGUI:
             winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, self.original_proxy_enable)
             if self.original_proxy_server:
                 winreg.SetValueEx(key, "ProxyServer", 0, winreg.REG_SZ, self.original_proxy_server)
+            else:
+                try:
+                    winreg.DeleteValue(key, "ProxyServer")
+                except FileNotFoundError:
+                    pass
             if self.original_proxy_override:
                 winreg.SetValueEx(key, "ProxyOverride", 0, winreg.REG_SZ, self.original_proxy_override)
             winreg.CloseKey(key)
