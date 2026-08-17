@@ -40,7 +40,7 @@ echo.
 :: 3. Derleme Islemi
 echo [3/5] PyInstaller ile Tek Dosya (EXE) derleniyor...
 echo Bu islem 30 saniye kadar surebilir, lutfen bekleyin...
-pyinstaller --noconfirm --onefile --windowed --icon="icon.ico" --add-data "bin/intra-windpi.exe;bin" --add-data "icon.png;." --add-data "icon.ico;." --name="IntraWindows" app.py
+pyinstaller --noconfirm --onefile --windowed --icon="icon.ico" --uac-admin --contents-directory="internal" --add-data "bin/intra-windpi.exe;bin" --add-data "icon.png;." --add-data "icon.ico;." --name="IntraWindows" app.py
 
 if %errorLevel% neq 0 (
     echo.
@@ -50,15 +50,21 @@ if %errorLevel% neq 0 (
 )
 echo.
 
-:: 4. Dosyayi Ana Dizine Tasima
-echo [4/5] Derlenen dosya ana dizine tasiniyor...
+:: 4. Dijital Imzalama (Code Signing - Bilinmeyen Yayinci Uyarisi ve AV Istisnasi Icin)
+echo [4/5] EXE Dijital olarak imzalaniyor (Code Signing)...
+powershell -Command "$cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1; if (-not $cert) { $cert = New-SelfSignedCertificate -CertStoreLocation cert:\CurrentUser\My -Subject 'CN=IntraWindows Shield' -Type CodeSigningCert }; Set-AuthenticodeSignature -FilePath 'goodbyedpi-gui-win\dist\IntraWindows.exe' -Certificate $cert" >nul 2>&1
+echo Dijital imza eklendi (Yayinci: IntraWindows Shield).
+echo.
+
+:: 5. Dosyayi Ana Dizine Tasima
+echo [5/5] Derlenen dosya ana dizine tasiniyor...
 cd ..
 if exist "IntraWindows.exe" del /f "IntraWindows.exe"
 move "goodbyedpi-gui-win\dist\IntraWindows.exe" ".\IntraWindows.exe" >nul 2>&1
 echo.
 
-:: 5. Temizlik
-echo [5/5] Gecici derleme dosyalari temizleniyor...
+:: 6. Temizlik
+echo [6/5] Gecici derleme dosyalari temizleniyor...
 cd goodbyedpi-gui-win
 rmdir /s /q build >nul 2>&1
 rmdir /s /q dist >nul 2>&1

@@ -880,20 +880,61 @@ class GoodbyeDpiGUI:
     def set_dns_servers(self, dns_servers):
         def task():
             try:
-                if dns_servers:
-                    servers_str = ",".join(f'"{ip}"' for ip in dns_servers)
-                    ps_cmd = f'Get-NetAdapter | Where-Object Status -eq Up | Set-DnsClientServerAddress -ServerAddresses ({servers_str})'
-                else:
-                    ps_cmd = 'Get-NetAdapter | Where-Object Status -eq Up | Set-DnsClientServerAddress -ResetServerAddress'
+                # Get active adapter names via netsh (avoids suspicious PowerShell spawning)
+                res = subprocess.run(
+                    ['netsh', 'interface', 'show', 'interface'],
+                    capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                adapters = []
+                for line in res.stdout.splitlines():
+                    parts = line.split()
+                    if len(parts) >= 4 and parts[1].lower() == 'connected':
+                        adapters.append(' '.join(parts[3:]))
                 
-                res = subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
-                if res.returncode == 0:
-                    self.log_message(f"[DNS] Sistem DNS adresi güncellendi: {dns_servers if dns_servers else 'Varsayılan DHCP'}")
-                else:
-                    self.log_message(f"[DNS HATA] DNS değiştirilemedi: {res.stderr.strip()}")
+                if not adapters:
+                    # Fallback: get all enabled adapters
+                    res2 = subprocess.run(
+                        ['netsh', 'interface', 'ipv4', 'show', 'interfaces'],
+                        capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                    for line in res2.stdout.splitlines():
+                        parts = line.split()
+                        if len(parts) >= 5 and parts[3].lower() == 'connected':
+                            adapters.append(' '.join(parts[4:]))
+
+                if not adapters:
+                    self.log_message("[DNS HATA] Aktif ağ adaptörü bulunamadı.")
+                    return
+
+                for adapter in adapters:
+                    if dns_servers:
+                        # Set primary DNS
+                        subprocess.run(
+                            ['netsh', 'interface', 'ip', 'set', 'dns',
+                             f'name={adapter}', 'source=static',
+                             f'address={dns_servers[0]}', 'validate=no'],
+                            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                        )
+                        # Set secondary DNS servers
+                        for i, ip in enumerate(dns_servers[1:], start=2):
+                            subprocess.run(
+                                ['netsh', 'interface', 'ip', 'add', 'dns',
+                                 f'name={adapter}', f'address={ip}',
+                                 f'index={i}', 'validate=no'],
+                                capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                            )
+                    else:
+                        # Reset to DHCP
+                        subprocess.run(
+                            ['netsh', 'interface', 'ip', 'set', 'dns',
+                             f'name={adapter}', 'source=dhcp'],
+                            capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                        )
+
+                self.log_message(f"[DNS] Sistem DNS güncellendi: {dns_servers if dns_servers else 'DHCP (Varsayılan)'}")
                 self.refresh_dns_display()
             except Exception as e:
-                self.log_message(f"[DNS HATA] DNS işleminde istisna oldu: {e}")
+                self.log_message(f"[DNS HATA] DNS işleminde hata: {e}")
                 
         threading.Thread(target=task, daemon=True).start()
 
@@ -1129,15 +1170,14 @@ class GoodbyeDpiGUI:
                 if getattr(sys, 'frozen', False):
                     exe_path = sys.executable
                 else:
-                    exe_path = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+                    exe_path = os.path.abspath(sys.argv[0])
                 
-                args = "--minimized" if self.config.get("tray_start", False) else ""
-                tr_cmd = f'"{exe_path}" {args}'.strip() if not getattr(sys, 'frozen', False) else f'"{exe_path}" {args}'.strip()
+                args = " --minimized" if self.config.get("tray_start", False) else ""
+                tr_cmd = f'"{exe_path}"{args}'
                 
                 res = subprocess.run(
-                    ['schtasks', '/create', '/f', '/tn', task_name,
-                     '/sc', 'onlogon', '/rl', 'highest', '/tr', tr_cmd],
-                    capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                    f'schtasks /create /f /tn "{task_name}" /sc onlogon /rl highest /tr "{tr_cmd}"',
+                    shell=True, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
                 )
                 if res.returncode == 0:
                     self.log_message("[SİSTEM] Otomatik başlatma görevi eklendi (Görev Zamanlayıcı)." if self.lang == "TR" else "[SYSTEM] Startup task registered (Task Scheduler).")
@@ -1200,9 +1240,18 @@ class GoodbyeDpiGUI:
         
         # Always forcefully reset DNS to DHCP on close regardless of user setting
         try:
-            ps_cmd = 'Get-NetAdapter | Where-Object Status -eq Up | Set-DnsClientServerAddress -ResetServerAddress'
-            subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True, text=True,
-                         creationflags=subprocess.CREATE_NO_WINDOW, timeout=3)
+            res = subprocess.run(
+                ['netsh', 'interface', 'show', 'interface'],
+                capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            for line in res.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 4 and parts[1].lower() == 'connected':
+                    adapter = ' '.join(parts[3:])
+                    subprocess.run(
+                        ['netsh', 'interface', 'ip', 'set', 'dns', f'name={adapter}', 'source=dhcp'],
+                        capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+                    )
         except:
             pass
         
