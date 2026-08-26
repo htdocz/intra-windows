@@ -275,6 +275,42 @@ def check_single_instance():
             pass
         sys.exit(0)
 
+def sanitize_system_proxy_on_startup():
+    """Automatically cleans up any leftover proxy settings from crash or unexpected power off."""
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+            0,
+            winreg.KEY_READ
+        )
+        try:
+            proxy_enable = winreg.QueryValueEx(key, "ProxyEnable")[0]
+            proxy_server = winreg.QueryValueEx(key, "ProxyServer")[0]
+        except FileNotFoundError:
+            proxy_enable = 0
+            proxy_server = ""
+        winreg.CloseKey(key)
+
+        # If proxy was left pointing to localhost 10809/10808 from a past shutdown or power outage
+        if proxy_enable == 1 and ("10809" in proxy_server or "10808" in proxy_server):
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+                0,
+                winreg.KEY_WRITE
+            )
+            winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 0)
+            try:
+                winreg.DeleteValue(key, "ProxyServer")
+            except FileNotFoundError:
+                pass
+            winreg.CloseKey(key)
+            ctypes.windll.wininet.InternetSetOptionW(0, 39, 0, 0)
+            ctypes.windll.wininet.InternetSetOptionW(0, 37, 0, 0)
+    except Exception as e:
+        print(f"Startup sanitizer error: {e}")
+
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -1164,34 +1200,111 @@ class GoodbyeDpiGUI:
         self.config["startup"] = enable
         self.save_config()
         
-        task_name = "IntraWindows"
+        if getattr(sys, 'frozen', False):
+            exe_path = sys.executable
+        else:
+            exe_path = sys.executable
+            
+        startup_dir = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs\Startup")
+        shortcut_path = os.path.join(startup_dir, "IntraWindows.lnk")
+        
         try:
+            # 1. HKCU Run Registry Key
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_ALL_ACCESS)
             if enable:
-                if getattr(sys, 'frozen', False):
-                    exe_path = sys.executable
-                else:
-                    exe_path = os.path.abspath(sys.argv[0])
+                target_cmd = f'"{exe_path}"'
+                if not getattr(sys, 'frozen', False):
+                    target_cmd = f'"{exe_path}" "{os.path.abspath(sys.argv[0])}"'
+                if self.config.get("tray_start", False):
+                    target_cmd += " --minimized"
+                winreg.SetValueEx(key, "IntraWindows", 0, winreg.REG_SZ, target_cmd)
                 
-                args = " --minimized" if self.config.get("tray_start", False) else ""
-                tr_cmd = f'"{exe_path}"{args}'
-                
-                res = subprocess.run(
-                    f'schtasks /create /f /tn "{task_name}" /sc onlogon /rl highest /tr "{tr_cmd}"',
-                    shell=True, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                if res.returncode == 0:
-                    self.log_message("[SİSTEM] Otomatik başlatma görevi eklendi (Görev Zamanlayıcı)." if self.lang == "TR" else "[SYSTEM] Startup task registered (Task Scheduler).")
-                else:
-                    self.log_message(f"[SİSTEM HATA] Görev Zamanlayıcı hatası: {res.stderr.strip()}" if self.lang == "TR" else f"[SYS ERROR] Task Scheduler error: {res.stderr.strip()}")
+                # 2. Startup Folder Shortcut (.lnk)
+                if os.path.exists(startup_dir):
+                    args_flag = "--minimized" if self.config.get("tray_start", False) else ""
+                    ps_sc = (
+                        f'$s=(New-Object -COM WScript.Shell).CreateShortcut("{shortcut_path}"); '
+                        f'$s.TargetPath="{exe_path}"; '
+                        f'$s.Arguments="{args_flag}"; '
+                        f'$s.WorkingDirectory="{REAL_APP_DIR}"; '
+                        f'$s.Save()'
+                    )
+                    subprocess.run(["powershell", "-Command", ps_sc], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+                # 3. Task Scheduler fallback
+                task_name = "IntraWindows"
+                tr_cmd = f'"{exe_path}"' + (" --minimized" if self.config.get("tray_start", False) else "")
+                subprocess.run(f'schtasks /create /f /tn "{task_name}" /sc onlogon /tr "{tr_cmd}"', shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+                self.log_message("[SİSTEM] Otomatik başlatma kaydı eklendi." if self.lang == "TR" else "[SYSTEM] Auto-start entry added.")
             else:
-                res = subprocess.run(
-                    ['schtasks', '/delete', '/f', '/tn', task_name],
-                    capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                if res.returncode == 0:
-                    self.log_message("[SİSTEM] Otomatik başlatma görevi silindi." if self.lang == "TR" else "[SYSTEM] Startup task removed.")
+                try:
+                    winreg.DeleteValue(key, "IntraWindows")
+                except FileNotFoundError:
+                    pass
+                try:
+                    if os.path.exists(shortcut_path):
+                        os.remove(shortcut_path)
+                except:
+                    pass
+                subprocess.run('schtasks /delete /f /tn "IntraWindows"', shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                self.log_message("[SİSTEM] Otomatik başlatma kaydı silindi." if self.lang == "TR" else "[SYSTEM] Auto-start entry deleted.")
+            winreg.CloseKey(key)
         except Exception as e:
             self.log_message(f"[SİSTEM HATA] Başlangıç ayarı kaydedilemedi: {e}" if self.lang == "TR" else f"[SYS ERROR] Failed to configure startup: {e}")
+
+    def fast_shutdown_cleanup(self):
+        """Instant non-blocking cleanup for Windows shutdown."""
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+                0,
+                winreg.KEY_WRITE
+            )
+            winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 0)
+            try:
+                winreg.DeleteValue(key, "ProxyServer")
+            except FileNotFoundError:
+                pass
+            winreg.CloseKey(key)
+            ctypes.windll.wininet.InternetSetOptionW(0, 39, 0, 0)
+            ctypes.windll.wininet.InternetSetOptionW(0, 37, 0, 0)
+        except:
+            pass
+
+        if self.process:
+            try:
+                self.process.kill()
+            except:
+                pass
+            self.process = None
+
+        global _instance_socket
+        if _instance_socket:
+            try:
+                _instance_socket.close()
+            except:
+                pass
+            _instance_socket = None
+
+        if self.tray_icon:
+            try:
+                self.tray_icon.stop()
+            except:
+                pass
+
+    def setup_shutdown_handler(self):
+        """Register OS shutdown signal handlers to prevent 'Apps preventing shutdown' dialogs."""
+        try:
+            def console_ctrl_handler(ctrl_type):
+                self.fast_shutdown_cleanup()
+                return True
+
+            self._ctrl_handler = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)(console_ctrl_handler)
+            ctypes.windll.kernel32.SetConsoleCtrlHandler(self._ctrl_handler, True)
+        except Exception as e:
+            print(f"Error setting console handler: {e}")
 
     def setup_tray_icon(self):
         if self.tray_icon:
@@ -1236,9 +1349,9 @@ class GoodbyeDpiGUI:
             self.on_closing()
 
     def on_closing(self):
-        self.stop_bypass()
+        self.fast_shutdown_cleanup()
         
-        # Always forcefully reset DNS to DHCP on close regardless of user setting
+        # Reset DNS to DHCP if configured
         try:
             res = subprocess.run(
                 ['netsh', 'interface', 'show', 'interface'],
@@ -1254,57 +1367,19 @@ class GoodbyeDpiGUI:
                     )
         except:
             pass
-        
-        # Give OS time to terminate the backend process and release file locks
-        time.sleep(0.5)
-        
-        # Restore original proxy settings saved at startup
-        try:
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-                0,
-                winreg.KEY_WRITE
-            )
-            winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, self.original_proxy_enable)
-            if self.original_proxy_server:
-                winreg.SetValueEx(key, "ProxyServer", 0, winreg.REG_SZ, self.original_proxy_server)
-            else:
-                try:
-                    winreg.DeleteValue(key, "ProxyServer")
-                except FileNotFoundError:
-                    pass
-            if self.original_proxy_override:
-                winreg.SetValueEx(key, "ProxyOverride", 0, winreg.REG_SZ, self.original_proxy_override)
-            winreg.CloseKey(key)
-            ctypes.windll.wininet.InternetSetOptionW(0, 39, 0, 0)
-            ctypes.windll.wininet.InternetSetOptionW(0, 37, 0, 0)
-        except:
-            pass
-            
-        if self.tray_icon:
-            self.tray_icon.stop()
-            
-        self.root.destroy()
+
+        if self.root:
+            try:
+                self.root.destroy()
+            except:
+                pass
         sys.exit(0)
 
 if __name__ == "__main__":
+    sanitize_system_proxy_on_startup()
     check_single_instance()
-    admin_status = is_admin()
-    if not admin_status:
-        try:
-            if getattr(sys, 'frozen', False):
-                arguments = " ".join(sys.argv[1:])
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, arguments, APP_DIR, 1)
-            else:
-                pythonw_exe = sys.executable.lower().replace("python.exe", "pythonw.exe")
-                script_path = os.path.abspath(sys.argv[0])
-                arguments = f'"{script_path}" ' + " ".join(sys.argv[1:])
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", pythonw_exe, arguments, APP_DIR, 0)
-        except Exception as e:
-            print(f"Yetki yukseltilemedi: {e}")
-        sys.exit()
 
     root = ctk.CTk()
     app = GoodbyeDpiGUI(root)
+    app.setup_shutdown_handler()
     root.mainloop()
