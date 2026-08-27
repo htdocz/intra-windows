@@ -415,8 +415,10 @@ class GoodbyeDpiGUI:
             }
         }
 
-        # 2. Launch proxy backend IMMEDIATELY before building UI elements!
-        self.check_binaries_immediate()
+        # Watchdog & Reconnection States
+        self.should_be_running = False
+        self.reconnect_attempts = 0
+        self.max_reconnect_attempts = 5
         
         self.root.title(self.lang_dict["window_title"])
         self.root.geometry("540x700")
@@ -434,6 +436,10 @@ class GoodbyeDpiGUI:
             
         self.setup_ui()
         self.apply_config_to_ui()
+        self.check_binaries()
+        
+        # AUTOMATICALLY START SHIELD ON APP LAUNCH!
+        self.start_bypass()
         
         self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
         
