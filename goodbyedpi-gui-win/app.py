@@ -396,10 +396,24 @@ class GoodbyeDpiGUI:
         self.original_proxy_override = ""
         self.save_original_proxy_settings()
         
-        # Watchdog & Reconnection States
-        self.should_be_running = False
-        self.reconnect_attempts = 0
-        self.max_reconnect_attempts = 5
+        self.dns_doh_providers = {
+            "Cloudflare DNS (1.1.1.1)": {
+                "url": "https://cloudflare-dns.com/dns-query",
+                "bootstrap": "1.1.1.1,1.0.0.1"
+            },
+            "Google DNS (8.8.8.8)": {
+                "url": "https://dns.google/dns-query",
+                "bootstrap": "8.8.8.8,8.8.4.4"
+            },
+            "Quad9 DNS (9.9.9.9)": {
+                "url": "https://dns.quad9.net/dns-query",
+                "bootstrap": "9.9.9.9,149.112.112.112"
+            },
+            "AdGuard DNS": {
+                "url": "https://dns.adguard-dns.com/dns-query",
+                "bootstrap": "94.140.14.14,94.140.15.15"
+            }
+        }
 
         # 2. Launch proxy backend IMMEDIATELY before building UI elements!
         self.check_binaries_immediate()
@@ -589,25 +603,6 @@ class GoodbyeDpiGUI:
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold")
         )
         self.dns_provider_lbl.pack(anchor="w", padx=10, pady=(15, 5))
-        
-        self.dns_doh_providers = {
-            "Cloudflare DNS (1.1.1.1)": {
-                "url": "https://cloudflare-dns.com/dns-query",
-                "bootstrap": "1.1.1.1,1.0.0.1"
-            },
-            "Google DNS (8.8.8.8)": {
-                "url": "https://dns.google/dns-query",
-                "bootstrap": "8.8.8.8,8.8.4.4"
-            },
-            "Quad9 DNS (9.9.9.9)": {
-                "url": "https://dns.quad9.net/dns-query",
-                "bootstrap": "9.9.9.9,149.112.112.112"
-            },
-            "AdGuard DNS": {
-                "url": "https://dns.adguard-dns.com/dns-query",
-                "bootstrap": "94.140.14.14,94.140.15.15"
-            }
-        }
         
         self.doh_dropdown = ctk.CTkOptionMenu(
             self.settings_scroll,
