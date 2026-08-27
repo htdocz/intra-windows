@@ -409,6 +409,7 @@ class GoodbyeDpiGUI:
             self.root.after(200, lambda: self.root.iconbitmap(icon_ico_path))
             
         self.setup_ui()
+        self.apply_config_to_ui()
         
         self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
         self.check_binaries()
@@ -787,19 +788,27 @@ class GoodbyeDpiGUI:
                 self.config = default_config
         else:
             self.config = default_config
-        
-        self.root.after(10, self.apply_config_to_ui)
 
     def apply_config_to_ui(self):
-        self.doh_dropdown.set(self.config["doh_provider"])
-        self.port_entry.delete(0, "end")
-        self.port_entry.insert(0, self.config["socks_port"])
-        self.startup_var.set(self.config["startup"])
-        self.tray_close_var.set(self.config["tray_close"])
-        self.tray_start_var.set(self.config["tray_start"])
-        self.dns_enable_var.set(self.config["system_dns_enabled"])
-        self.dns_reset_var.set(self.config["dns_reset_on_exit"])
-        self.toggle_dns_changer_ui()
+        try:
+            if hasattr(self, 'doh_dropdown'):
+                self.doh_dropdown.set(self.config.get("doh_provider", "Cloudflare DNS (1.1.1.1)"))
+            if hasattr(self, 'port_entry'):
+                self.port_entry.delete(0, "end")
+                self.port_entry.insert(0, self.config.get("socks_port", "10808"))
+            if hasattr(self, 'startup_var'):
+                self.startup_var.set(self.config.get("startup", False))
+            if hasattr(self, 'tray_close_var'):
+                self.tray_close_var.set(self.config.get("tray_close", True))
+            if hasattr(self, 'tray_start_var'):
+                self.tray_start_var.set(self.config.get("tray_start", False))
+            if hasattr(self, 'dns_enable_var'):
+                self.dns_enable_var.set(self.config.get("system_dns_enabled", False))
+            if hasattr(self, 'dns_reset_var'):
+                self.dns_reset_var.set(self.config.get("dns_reset_on_exit", True))
+            self.toggle_dns_changer_ui()
+        except Exception as e:
+            print(f"Error applying config to UI: {e}")
 
     def save_config(self):
         try:
@@ -809,12 +818,20 @@ class GoodbyeDpiGUI:
             print(f"Error saving config: {e}")
 
     def update_config_vars(self):
-        self.config["tray_close"] = self.tray_close_var.get()
-        self.config["tray_start"] = self.tray_start_var.get()
-        self.config["system_dns_enabled"] = self.dns_enable_var.get()
-        self.config["dns_reset_on_exit"] = self.dns_reset_var.get()
-        self.config["socks_port"] = self.port_entry.get().strip() or "10808"
-        self.config["doh_provider"] = self.doh_dropdown.get()
+        if hasattr(self, 'startup_var'):
+            self.config["startup"] = self.startup_var.get()
+        if hasattr(self, 'tray_close_var'):
+            self.config["tray_close"] = self.tray_close_var.get()
+        if hasattr(self, 'tray_start_var'):
+            self.config["tray_start"] = self.tray_start_var.get()
+        if hasattr(self, 'dns_enable_var'):
+            self.config["system_dns_enabled"] = self.dns_enable_var.get()
+        if hasattr(self, 'dns_reset_var'):
+            self.config["dns_reset_on_exit"] = self.dns_reset_var.get()
+        if hasattr(self, 'port_entry'):
+            self.config["socks_port"] = self.port_entry.get().strip() or "10808"
+        if hasattr(self, 'doh_dropdown'):
+            self.config["doh_provider"] = self.doh_dropdown.get()
         self.save_config()
 
     def on_doh_change(self, val):
