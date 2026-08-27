@@ -10,7 +10,18 @@ else:
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
     REAL_APP_DIR = APP_DIR
 
-BIN_DIR = os.path.join(APP_DIR, "bin")
+BIN_DIR = os.path.join(REAL_APP_DIR, "bin")
+
+def ensure_external_binary():
+    """Extracts binary from _MEIPASS to REAL_APP_DIR/bin if needed so Temp directory is never locked."""
+    try:
+        os.makedirs(BIN_DIR, exist_ok=True)
+        target_exe = os.path.join(BIN_DIR, "intra-windpi.exe")
+        bundled_exe = os.path.join(APP_DIR, "bin", "intra-windpi.exe")
+        if not os.path.exists(target_exe) and os.path.exists(bundled_exe):
+            shutil.copy2(bundled_exe, target_exe)
+    except Exception as e:
+        print(f"Error extracting external binary: {e}")
 
 # Global crash logger to capture any startup or runtime errors
 def global_excepthook(exctype, value, tb):
@@ -813,6 +824,7 @@ class GoodbyeDpiGUI:
                 self.set_dns_servers(None)
 
     def check_binaries(self):
+        ensure_external_binary()
         exe_path = os.path.join(self.bin_dir, "intra-windpi.exe")
         if not os.path.exists(exe_path):
             if shutil.which("go"):
@@ -1270,6 +1282,12 @@ class GoodbyeDpiGUI:
             winreg.CloseKey(key)
             ctypes.windll.wininet.InternetSetOptionW(0, 39, 0, 0)
             ctypes.windll.wininet.InternetSetOptionW(0, 37, 0, 0)
+        except:
+            pass
+
+        # Forcefully terminate Go backend to release file handles
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/IM", "intra-windpi.exe"], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
         except:
             pass
 
