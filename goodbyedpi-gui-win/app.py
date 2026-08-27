@@ -1295,16 +1295,60 @@ class GoodbyeDpiGUI:
                 pass
 
     def setup_shutdown_handler(self):
-        """Register OS shutdown signal handlers to prevent 'Apps preventing shutdown' dialogs."""
+        """Registers a hidden native Win32 top-level window to capture WM_QUERYENDSESSION & WM_ENDSESSION."""
         try:
-            def console_ctrl_handler(ctrl_type):
-                self.fast_shutdown_cleanup()
-                return True
+            from ctypes import wintypes
 
-            self._ctrl_handler = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)(console_ctrl_handler)
-            ctypes.windll.kernel32.SetConsoleCtrlHandler(self._ctrl_handler, True)
+            WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_int64, wintypes.HWND, ctypes.c_uint, wintypes.WPARAM, wintypes.LPARAM)
+
+            def wnd_proc(hwnd, msg, wparam, lparam):
+                if msg in (0x0011, 0x0016): # WM_QUERYENDSESSION (0x0011), WM_ENDSESSION (0x0016)
+                    try:
+                        self.fast_shutdown_cleanup()
+                    except:
+                        pass
+                    os._exit(0)
+                    return 1
+                return ctypes.windll.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
+
+            self._shutdown_wndproc_ref = WNDPROC(wnd_proc)
+
+            class WNDCLASSW(ctypes.Structure):
+                _fields_ = [
+                    ("style", ctypes.c_uint),
+                    ("lpfnWndProc", WNDPROC),
+                    ("cbClsExtra", ctypes.c_int),
+                    ("cbWndExtra", ctypes.c_int),
+                    ("hInstance", wintypes.HINSTANCE),
+                    ("hIcon", wintypes.HICON),
+                    ("hCursor", wintypes.HCURSOR),
+                    ("hbrBackground", wintypes.HBRUSH),
+                    ("lpszMenuName", wintypes.LPCWSTR),
+                    ("lpszClassName", wintypes.LPCWSTR),
+                ]
+
+            hinstance = ctypes.windll.kernel32.GetModuleHandleW(None)
+            wndclass = WNDCLASSW()
+            wndclass.style = 0
+            wndclass.lpfnWndProc = self._shutdown_wndproc_ref
+            wndclass.cbClsExtra = 0
+            wndclass.cbWndExtra = 0
+            wndclass.hInstance = hinstance
+            wndclass.hIcon = 0
+            wndclass.hCursor = 0
+            wndclass.hbrBackground = 0
+            wndclass.lpszMenuName = None
+            wndclass.lpszClassName = "IntraWindowsShutdownClass"
+
+            ctypes.windll.user32.RegisterClassW(ctypes.byref(wndclass))
+
+            # Create hidden top-level window to receive system shutdown broadcasts
+            self.shutdown_hwnd = ctypes.windll.user32.CreateWindowExW(
+                0, "IntraWindowsShutdownClass", "IntraShutdownWindow",
+                0, 0, 0, 0, 0, 0, 0, hinstance, None
+            )
         except Exception as e:
-            print(f"Error setting console handler: {e}")
+            print(f"Error setting Win32 shutdown listener: {e}")
 
     def setup_tray_icon(self):
         if self.tray_icon:
