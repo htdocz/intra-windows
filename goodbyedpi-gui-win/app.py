@@ -436,6 +436,7 @@ class GoodbyeDpiGUI:
             
         self.setup_ui()
         self.apply_config_to_ui()
+        self.sync_startup_shortcut()
         self.check_binaries()
         
         # AUTOMATICALLY START SHIELD ON APP LAUNCH!
@@ -1250,63 +1251,66 @@ class GoodbyeDpiGUI:
         if self.tray_icon:
             self.tray_icon.title = f"{self.lang_dict['window_title']}: {self.lang_dict['status_active'] if active else self.lang_dict['status_disabled']}"
 
+    def sync_startup_shortcut(self, force_enable=None):
+        enable = force_enable if force_enable is not None else self.config.get("startup", False)
+        
+        # Clean up old delayed registry & task scheduler entries if present
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
+            winreg.DeleteValue(key, "IntraWindows")
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+
+        try:
+            subprocess.run('schtasks /delete /f /tn "IntraWindows"', shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        except Exception:
+            pass
+
+        startup_dir = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs\Startup")
+        shortcut_path = os.path.join(startup_dir, "IntraWindows.lnk")
+
+        if enable:
+            exe_path = sys.executable
+            exe_dir = os.path.dirname(exe_path)
+            args = "--minimized" if self.config.get("tray_start", False) else ""
+            
+            vbs_code = f'''Set WshShell = CreateObject("WScript.Shell")
+Set shortcut = WshShell.CreateShortcut("{shortcut_path}")
+shortcut.TargetPath = "{exe_path}"
+shortcut.Arguments = "{args}"
+shortcut.WorkingDirectory = "{exe_dir}"
+shortcut.Save
+'''
+            vbs_file = os.path.join(REAL_APP_DIR, "_tmp_sc.vbs")
+            try:
+                with open(vbs_file, "w", encoding="utf-8") as f:
+                    f.write(vbs_code)
+                subprocess.run(f'cscript //Nologo "{vbs_file}"', shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            except Exception as e:
+                print(f"Error creating shortcut: {e}")
+            finally:
+                if os.path.exists(vbs_file):
+                    try:
+                        os.remove(vbs_file)
+                    except Exception:
+                        pass
+        else:
+            if os.path.exists(shortcut_path):
+                try:
+                    os.remove(shortcut_path)
+                except Exception:
+                    pass
+
     def toggle_startup(self):
         enable = self.startup_var.get()
         self.config["startup"] = enable
         self.save_config()
-        
-        if getattr(sys, 'frozen', False):
-            exe_path = sys.executable
+        self.sync_startup_shortcut(enable)
+        if enable:
+            self.log_message("[SİSTEM] Otomatik başlatma kaydı Başlat klasörüne eklendi." if self.lang == "TR" else "[SYSTEM] Auto-start entry added to Startup folder.")
         else:
-            exe_path = sys.executable
-            
-        startup_dir = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs\Startup")
-        shortcut_path = os.path.join(startup_dir, "IntraWindows.lnk")
-        
-        try:
-            # 1. HKCU Run Registry Key
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_ALL_ACCESS)
-            if enable:
-                target_cmd = f'"{exe_path}"'
-                if not getattr(sys, 'frozen', False):
-                    target_cmd = f'"{exe_path}" "{os.path.abspath(sys.argv[0])}"'
-                if self.config.get("tray_start", False):
-                    target_cmd += " --minimized"
-                winreg.SetValueEx(key, "IntraWindows", 0, winreg.REG_SZ, target_cmd)
-                
-                # 2. Startup Folder Shortcut (.lnk)
-                if os.path.exists(startup_dir):
-                    args_flag = "--minimized" if self.config.get("tray_start", False) else ""
-                    ps_sc = (
-                        f'$s=(New-Object -COM WScript.Shell).CreateShortcut("{shortcut_path}"); '
-                        f'$s.TargetPath="{exe_path}"; '
-                        f'$s.Arguments="{args_flag}"; '
-                        f'$s.WorkingDirectory="{REAL_APP_DIR}"; '
-                        f'$s.Save()'
-                    )
-                    subprocess.run(["powershell", "-Command", ps_sc], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-
-                # 3. Task Scheduler fallback
-                task_name = "IntraWindows"
-                tr_cmd = f'"{exe_path}"' + (" --minimized" if self.config.get("tray_start", False) else "")
-                subprocess.run(f'schtasks /create /f /tn "{task_name}" /sc onlogon /tr "{tr_cmd}"', shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-
-                self.log_message("[SİSTEM] Otomatik başlatma kaydı eklendi." if self.lang == "TR" else "[SYSTEM] Auto-start entry added.")
-            else:
-                try:
-                    winreg.DeleteValue(key, "IntraWindows")
-                except FileNotFoundError:
-                    pass
-                try:
-                    if os.path.exists(shortcut_path):
-                        os.remove(shortcut_path)
-                except:
-                    pass
-                subprocess.run('schtasks /delete /f /tn "IntraWindows"', shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
-                self.log_message("[SİSTEM] Otomatik başlatma kaydı silindi." if self.lang == "TR" else "[SYSTEM] Auto-start entry deleted.")
-            winreg.CloseKey(key)
-        except Exception as e:
-            self.log_message(f"[SİSTEM HATA] Başlangıç ayarı kaydedilemedi: {e}" if self.lang == "TR" else f"[SYS ERROR] Failed to configure startup: {e}")
+            self.log_message("[SİSTEM] Otomatik başlatma kaydı silindi." if self.lang == "TR" else "[SYSTEM] Auto-start entry removed.")
 
     def fast_shutdown_cleanup(self):
         """Instant non-blocking cleanup for Windows shutdown."""
