@@ -443,8 +443,17 @@ class GoodbyeDpiGUI:
                 self.original_proxy_override = ""
                 
             winreg.CloseKey(key)
+
+            # CRITICAL FIX: If original proxy server was pointing to our local proxy (127.0.0.1 / 10809 / 10808 / localhost),
+            # it means proxy was left enabled from a previous run or crash! Reset original proxy backup to disabled (0).
+            if "10809" in self.original_proxy_server or "10808" in self.original_proxy_server or "127.0.0.1" in self.original_proxy_server or "localhost" in self.original_proxy_server:
+                self.original_proxy_enable = 0
+                self.original_proxy_server = ""
+                self.original_proxy_override = ""
         except Exception as e:
-            print(f"Error reading proxy: {e}")
+            self.original_proxy_enable = 0
+            self.original_proxy_server = ""
+            self.original_proxy_override = ""
 
     def setup_ui(self):
         self.root.grid_rowconfigure(5, weight=1)
