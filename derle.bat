@@ -40,7 +40,7 @@ echo.
 :: 3. Derleme Islemi
 echo [3/5] PyInstaller ile Tek Dosya (EXE) derleniyor...
 echo Bu islem 30 saniye kadar surebilir, lutfen bekleyin...
-pyinstaller --noconfirm --onefile --windowed --icon="icon.ico" --uac-admin --contents-directory="internal" --add-data "bin/intra-windpi.exe;bin" --add-data "icon.png;." --add-data "icon.ico;." --name="IntraWindows" app.py
+pyinstaller --noconfirm --onefile --windowed --icon="icon.ico" --contents-directory="internal" --add-data "bin/intra-windpi.exe;bin" --add-data "icon.png;." --add-data "icon.ico;." --name="IntraWindows" app.py
 
 if %errorLevel% neq 0 (
     echo.

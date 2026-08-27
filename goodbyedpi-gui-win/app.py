@@ -316,6 +316,7 @@ def sanitize_system_proxy_on_startup():
                 winreg.DeleteValue(key, "ProxyServer")
             except FileNotFoundError:
                 pass
+            winreg.FlushKey(key)
             winreg.CloseKey(key)
             ctypes.windll.wininet.InternetSetOptionW(0, 39, 0, 0)
             ctypes.windll.wininet.InternetSetOptionW(0, 37, 0, 0)
@@ -1063,6 +1064,7 @@ class GoodbyeDpiGUI:
                 # Reset binary connection settings blobs
                 self.set_default_connection_settings(False)
                 
+            winreg.FlushKey(key)
             winreg.CloseKey(key)
             
             # Refresh network configuration immediately with ctypes signature
@@ -1279,6 +1281,7 @@ class GoodbyeDpiGUI:
                 winreg.DeleteValue(key, "ProxyServer")
             except FileNotFoundError:
                 pass
+            winreg.FlushKey(key)
             winreg.CloseKey(key)
             ctypes.windll.wininet.InternetSetOptionW(0, 39, 0, 0)
             ctypes.windll.wininet.InternetSetOptionW(0, 37, 0, 0)
