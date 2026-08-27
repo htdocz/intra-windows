@@ -373,6 +373,13 @@ class GoodbyeDpiGUI:
     def __init__(self, root):
         self.root = root
         
+        # 1. Set High Process Priority for instant startup & network response
+        try:
+            import psutil
+            psutil.Process(os.getpid()).priority(psutil.HIGH_PRIORITY_CLASS)
+        except:
+            pass
+            
         self.app_dir = APP_DIR
         self.bin_dir = BIN_DIR
         self.process = None
@@ -382,15 +389,6 @@ class GoodbyeDpiGUI:
         self.load_config()
         self.lang = self.config.get("language", "TR")
         self.lang_dict = LOCALIZATION.get(self.lang, LOCALIZATION["TR"])
-        
-        self.root.title(self.lang_dict["window_title"])
-        self.root.geometry("540x700")
-        self.root.resizable(True, True)
-        self.root.minsize(540, 600)
-        
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
-        self.root.configure(fg_color="#0F172A")
         
         # Original Proxy settings backup
         self.original_proxy_enable = 0
@@ -402,6 +400,18 @@ class GoodbyeDpiGUI:
         self.should_be_running = False
         self.reconnect_attempts = 0
         self.max_reconnect_attempts = 5
+
+        # 2. Launch proxy backend IMMEDIATELY before building UI elements!
+        self.check_binaries_immediate()
+        
+        self.root.title(self.lang_dict["window_title"])
+        self.root.geometry("540x700")
+        self.root.resizable(True, True)
+        self.root.minsize(540, 600)
+        
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+        self.root.configure(fg_color="#0F172A")
         
         ensure_icon_files()
         icon_ico_path = os.path.join(self.app_dir, "icon.ico")
@@ -412,11 +422,10 @@ class GoodbyeDpiGUI:
         self.apply_config_to_ui()
         
         self.root.protocol("WM_DELETE_WINDOW", self.on_window_close)
-        self.check_binaries()
         
         if "--minimized" in sys.argv or self.config.get("tray_start", False):
             self.setup_tray_icon()
-            self.root.after(100, self.root.withdraw)
+            self.root.after(10, self.root.withdraw)
         else:
             self.setup_tray_icon()
 
@@ -850,6 +859,12 @@ class GoodbyeDpiGUI:
             else:
                 self.set_dns_servers(None)
 
+    def check_binaries_immediate(self):
+        ensure_external_binary()
+        exe_path = os.path.join(self.bin_dir, "intra-windpi.exe")
+        if os.path.exists(exe_path):
+            self.start_bypass()
+
     def check_binaries(self):
         ensure_external_binary()
         exe_path = os.path.join(self.bin_dir, "intra-windpi.exe")
@@ -860,7 +875,6 @@ class GoodbyeDpiGUI:
                 self.show_missing_binary_error()
         else:
             self.refresh_dns_display()
-            self.root.after(400, self.start_bypass)
 
     def show_compilation_overlay(self):
         self.download_frame = ctk.CTkFrame(self.root, fg_color="#0F172A")
